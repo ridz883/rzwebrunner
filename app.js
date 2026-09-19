@@ -1,11 +1,11 @@
 import { WebContainer } from 'https://cdn.jsdelivr.net/npm/@webcontainer/api@1.6.4/+esm';
 
-// Default project files (Backend Express + HTML Frontend sederhana)
+// Default project setup: Express Backend + Frontend Static
 let files = {
   'package.json': {
     file: {
       contents: JSON.stringify({
-        name: "inbrowser-project",
+        name: "my-app",
         type: "module",
         dependencies: {
           "express": "^4.18.2"
@@ -24,37 +24,79 @@ const PORT = 3000;
 
 app.use(express.static('public'));
 
-app.get('/api/pesan', (req, res) => {
-  res.json({ status: true, message: 'Halo dari Backend Express!' });
+app.get('/api/info', (req, res) => {
+  res.json({
+    status: 'success',
+    message: 'Backend Express berhasil merespon di browser HP!'
+  });
 });
 
 app.listen(PORT, () => {
-  console.log('Server berjalan di port ' + PORT);
+  console.log(\`Server berjalan di port \${PORT}\`);
 });`
     }
   },
   'public/index.html': {
     file: {
       contents: `<!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Hasil Web</title>
+  <title>Preview App</title>
   <style>
-    body { font-family: sans-serif; text-align: center; padding: 40px; background: #f0fdf4; color: #166534; }
-    button { padding: 10px 20px; font-size: 14px; cursor: pointer; border-radius: 6px; border: 1px solid #16a34a; background: #22c55e; color: white; }
+    body {
+      font-family: -apple-system, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 80vh;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+    .card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      max-width: 320px;
+      width: 100%;
+    }
+    button {
+      background: #7c5cfc;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+    #res {
+      margin-top: 16px;
+      font-size: 13px;
+      color: #10b981;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
-  <h1>Frontend Berhasil Terhubung!</h1>
-  <button id="btn">Ambil Data Backend</button>
-  <p id="result" style="font-weight: bold; margin-top: 20px;"></p>
+  <div class="card">
+    <h3>Frontend Berjalan!</h3>
+    <p style="font-size: 13px; color: #64748b;">Tekan tombol di bawah untuk memanggil API backend.</p>
+    <button id="btn">Request ke Backend</button>
+    <div id="res"></div>
+  </div>
 
   <script>
     document.getElementById('btn').onclick = async () => {
-      const res = await fetch('/api/pesan');
+      const res = await fetch('/api/info');
       const data = await res.json();
-      document.getElementById('result').innerText = data.message;
+      document.getElementById('res').innerText = data.message;
     };
   <\/script>
 </body>
@@ -66,46 +108,55 @@ app.listen(PORT, () => {
 let activeFile = 'server.js';
 let webcontainerInstance = null;
 
-// DOM Elements
+// UI References
 const fileListEl = document.getElementById('file-list');
 const editorEl = document.getElementById('code-editor');
-const activeFileLabel = document.getElementById('active-file-label');
-const terminalEl = document.getElementById('terminal-output');
-const previewFrame = document.getElementById('preview-frame');
-const previewPlaceholder = document.getElementById('preview-placeholder');
+const lineNumbersEl = document.getElementById('line-numbers');
+const labelActiveFile = document.getElementById('label-active-file');
+const inputFilename = document.getElementById('input-filename');
+const btnCreateFile = document.getElementById('btn-create-file');
 const btnRun = document.getElementById('btn-run');
-const btnAddFile = document.getElementById('btn-add-file');
-const newFilenameInput = document.getElementById('new-filename-input');
+const previewFrame = document.getElementById('preview-frame');
+const previewIdle = document.getElementById('preview-idle');
+const terminalEl = document.getElementById('terminal-output');
 
-function logTerminal(message) {
-  terminalEl.textContent += '\n' + message;
+function logTerminal(text) {
+  terminalEl.textContent += '\n' + text;
   terminalEl.scrollTop = terminalEl.scrollHeight;
 }
 
-// 1. Render File Explorer
-function renderFileList() {
+// Update Line Numbers
+function updateLineNumbers() {
+  const lineCount = editorEl.value.split('\n').length;
+  lineNumbersEl.innerHTML = Array.from({ length: lineCount }, (_, i) => i + 1).join('<br>');
+}
+
+// Render File Explorer
+function renderFiles() {
   fileListEl.innerHTML = '';
   Object.keys(files).forEach((filename) => {
+    const ext = filename.split('.').pop();
     const li = document.createElement('li');
-    li.className = `flex items-center justify-between px-3 py-2 rounded text-xs cursor-pointer ${
-      filename === activeFile ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-    }`;
+    li.className = `file-item ${filename === activeFile ? 'active' : ''}`;
     
     li.innerHTML = `
-      <span class="truncate flex-1">${filename}</span>
-      <button class="btn-del text-red-400 hover:text-red-300 px-2 py-0.5" data-filename="${filename}">✕</button>
+      <div class="file-info">
+        <div class="file-badge">${ext}</div>
+        <span class="file-name">${filename}</span>
+      </div>
+      <button class="file-del" data-file="${filename}">✕</button>
     `;
 
     li.onclick = (e) => {
-      if (e.target.classList.contains('btn-del')) return;
-      saveActiveFileContent();
+      if (e.target.classList.contains('file-del')) return;
+      saveActiveContent();
       activeFile = filename;
-      loadActiveFileContent();
-      renderFileList();
-      switchTab('tab-editor');
+      loadActiveContent();
+      renderFiles();
+      switchTab('pane-editor');
     };
 
-    li.querySelector('.btn-del').onclick = (e) => {
+    li.querySelector('.file-del').onclick = (e) => {
       e.stopPropagation();
       deleteFile(filename);
     };
@@ -114,84 +165,82 @@ function renderFileList() {
   });
 }
 
-// 2. File State Operations (Add, Edit, Delete)
-function loadActiveFileContent() {
+function loadActiveContent() {
   if (activeFile && files[activeFile]) {
     editorEl.value = files[activeFile].file.contents;
-    activeFileLabel.textContent = activeFile;
+    labelActiveFile.textContent = activeFile;
     editorEl.disabled = false;
   } else {
     editorEl.value = '';
-    activeFileLabel.textContent = 'None';
+    labelActiveFile.textContent = 'None';
     editorEl.disabled = true;
   }
+  updateLineNumbers();
 }
 
-function saveActiveFileContent() {
+function saveActiveContent() {
   if (activeFile && files[activeFile]) {
     files[activeFile].file.contents = editorEl.value;
   }
 }
 
 editorEl.addEventListener('input', () => {
-  if (activeFile && files[activeFile]) {
-    files[activeFile].file.contents = editorEl.value;
-  }
+  saveActiveContent();
+  updateLineNumbers();
 });
 
-btnAddFile.onclick = () => {
-  const name = newFilenameInput.value.trim();
-  if (!name) return alert('Masukkan nama file');
-  if (files[name]) return alert('File sudah ada');
+editorEl.addEventListener('scroll', () => {
+  lineNumbersEl.scrollTop = editorEl.scrollTop;
+});
+
+// File Management
+btnCreateFile.onclick = () => {
+  const name = inputFilename.value.trim();
+  if (!name) return alert('Silakan masukkan nama file!');
+  if (files[name]) return alert('File sudah ada!');
 
   files[name] = { file: { contents: '' } };
-  newFilenameInput.value = '';
-  saveActiveFileContent();
+  inputFilename.value = '';
+  saveActiveContent();
   activeFile = name;
-  loadActiveFileContent();
-  renderFileList();
-  switchTab('tab-editor');
+  loadActiveContent();
+  renderFiles();
+  switchTab('pane-editor');
 };
 
 function deleteFile(name) {
   if (Object.keys(files).length <= 1) {
-    return alert('Minimal harus ada 1 file di project!');
+    return alert('Project harus memiliki minimal 1 file!');
   }
-  if (confirm(`Yakin ingin menghapus file ${name}?`)) {
+  if (confirm(`Hapus file "${name}"?`)) {
     delete files[name];
     if (activeFile === name) {
       activeFile = Object.keys(files)[0];
     }
-    loadActiveFileContent();
-    renderFileList();
+    loadActiveContent();
+    renderFiles();
   }
 }
 
-// 3. Tab Switching for Mobile
-function switchTab(targetTabId) {
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.classList.remove('text-indigo-400', 'border-indigo-500');
-    btn.classList.add('text-slate-400', 'border-transparent');
-  });
+// Tab Switching
+function switchTab(targetPaneId) {
+  document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
 
-  document.getElementById(targetTabId).classList.add('active');
-  const activeBtn = document.querySelector(`[data-tab="${targetTabId}"]`);
-  if (activeBtn) {
-    activeBtn.classList.remove('text-slate-400', 'border-transparent');
-    activeBtn.classList.add('text-indigo-400', 'border-indigo-500');
-  }
+  document.getElementById(targetPaneId).classList.add('active');
+  const activeNav = document.querySelector(`[data-target="${targetPaneId}"]`);
+  if (activeNav) activeNav.classList.add('active');
 }
 
-document.querySelectorAll('.tab-btn').forEach(btn => {
+document.querySelectorAll('.nav-item').forEach(btn => {
   btn.onclick = () => {
-    saveActiveFileContent();
-    switchTab(btn.getAttribute('data-tab'));
+    saveActiveContent();
+    switchTab(btn.getAttribute('data-target'));
   };
 });
 
-// Helper: Convert flat paths (e.g. 'public/index.html') into nested WebContainer tree
-function buildFileSystemTree(fileMap) {
+// Transform paths to nested tree for WebContainer
+function buildFSTree(fileMap) {
   const tree = {};
   for (const [path, data] of Object.entries(fileMap)) {
     const parts = path.split('/');
@@ -201,9 +250,7 @@ function buildFileSystemTree(fileMap) {
       if (i === parts.length - 1) {
         current[part] = { file: { contents: data.file.contents } };
       } else {
-        if (!current[part]) {
-          current[part] = { directory: {} };
-        }
+        if (!current[part]) current[part] = { directory: {} };
         current = current[part].directory;
       }
     }
@@ -211,61 +258,59 @@ function buildFileSystemTree(fileMap) {
   return tree;
 }
 
-// 4. Run / Execution Logic
+// Runner Engine
 btnRun.onclick = async () => {
-  saveActiveFileContent();
+  saveActiveContent();
   btnRun.disabled = true;
-  btnRun.innerText = 'Running...';
-  switchTab('tab-preview');
-  terminalEl.textContent = 'Memulai container...';
+  btnRun.innerHTML = '<span>⏳</span> Running...';
+  switchTab('pane-preview');
+  terminalEl.textContent = 'Menyiapkan environment...';
 
   try {
-    // Inisialisasi WebContainer (jika belum)
     if (!webcontainerInstance) {
-      logTerminal('Memuat WebContainer Node.js engine...');
+      logTerminal('Memulai WebContainer engine...');
       webcontainerInstance = await WebContainer.boot();
-      
-      // Listener event ketika server Express siap listen ke port
+
       webcontainerInstance.on('server-ready', (port, url) => {
-        logTerminal(`🚀 Server running di port ${port}`);
-        previewPlaceholder.classList.add('hidden');
-        previewFrame.classList.remove('hidden');
+        logTerminal(`🚀 Server siap di port ${port}!`);
+        previewIdle.style.display = 'none';
+        previewFrame.style.display = 'block';
         previewFrame.src = url;
       });
     }
 
-    logTerminal('Mounting struktur file...');
-    const tree = buildFileSystemTree(files);
+    logTerminal('Sinkronisasi file project...');
+    const tree = buildFSTree(files);
     await webcontainerInstance.mount(tree);
 
-    logTerminal('Menginstall dependensi (npm install)...');
-    const installProcess = await webcontainerInstance.spawn('npm', ['install']);
-    installProcess.output.pipeTo(new WritableStream({
-      write(data) { logTerminal(data); }
+    logTerminal('Menjalankan npm install...');
+    const install = await webcontainerInstance.spawn('npm', ['install']);
+    install.output.pipeTo(new WritableStream({
+      write(chunk) { logTerminal(chunk); }
     }));
-    
-    const installExitCode = await installProcess.exit;
-    if (installExitCode !== 0) {
-      logTerminal('Instalasi npm gagal.');
+
+    const exitCode = await install.exit;
+    if (exitCode !== 0) {
+      logTerminal('Gagal melakukan npm install.');
       btnRun.disabled = false;
-      btnRun.innerText = '▶ Run Project';
+      btnRun.innerHTML = '<span>▶</span> Run Project';
       return;
     }
 
     logTerminal('Menjalankan server (npm start)...');
-    const startProcess = await webcontainerInstance.spawn('npm', ['start']);
-    startProcess.output.pipeTo(new WritableStream({
-      write(data) { logTerminal(data); }
+    const start = await webcontainerInstance.spawn('npm', ['start']);
+    start.output.pipeTo(new WritableStream({
+      write(chunk) { logTerminal(chunk); }
     }));
 
   } catch (err) {
     logTerminal(`Error: ${err.message}`);
   } finally {
     btnRun.disabled = false;
-    btnRun.innerText = '▶ Restart Project';
+    btnRun.innerHTML = '<span>🔄</span> Restart Project';
   }
 };
 
-// Initial Setup
-renderFileList();
-loadActiveFileContent();
+// Initial Load
+renderFiles();
+loadActiveContent();
