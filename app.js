@@ -1,110 +1,213 @@
 import { WebContainer } from 'https://cdn.jsdelivr.net/npm/@webcontainer/api@1.6.4/+esm';
 
-// Konfigurasi URL Panel kamu jika sudah siap (bisa diganti URL domain panelmu)
-const PANEL_RUNNER_URL = "http://erine.jkt48node.id:3668"; 
+// Konfigurasi URL Panel Pterodactyl kamu
+const PANEL_RUNNER_URL = "http://erine.jkt48node.id:3668";
 
-// Struktur file awal project
-let files = {
+// 1. STRUKTUR DEFAULT LENGKAP MIRIP GITHUB REPO
+const DEFAULT_PROJECT_FILES = {
   'package.json': {
     file: {
       contents: JSON.stringify({
-        name: "my-app",
+        name: "my-fullstack-app",
+        version: "1.0.0",
         type: "module",
-        dependencies: {
-          "express": "^4.18.2"
-        },
         scripts: {
-          "start": "node server.js"
+          "start": "node backend/server.js"
+        },
+        dependencies: {
+          "express": "^4.18.2",
+          "cors": "^2.8.5"
         }
       }, null, 2)
     }
   },
-  'server.js': {
+  'backend/server.js': {
     file: {
       contents: `import express from 'express';
+import cors from 'cors';
+import { apiRouter } from './api.js';
+
 const app = express();
 const PORT = 3000;
 
+app.use(cors());
+app.use(express.json());
 app.use(express.static('public'));
 
-app.get('/api/data', (req, res) => {
-  res.json({ success: true, message: 'Halo dari Node.js Backend!' });
-});
+// Hubungkan sub-routes backend
+app.use('/api', apiRouter);
 
 app.listen(PORT, () => {
-  console.log(\`Server berjalan di port \${PORT}\`);
+  console.log('✅ Server Backend berjalan di port ' + PORT);
 });`
     }
   },
-  'api/routes.js': {
+  'backend/api.js': {
     file: {
-      contents: `// File contoh dalam subfolder
-export const helloRoute = (req, res) => {
-  res.send('API Route Aktif');
-};`
+      contents: `import { Router } from 'express';
+
+export const apiRouter = Router();
+
+apiRouter.get('/status', (req, res) => {
+  res.json({
+    status: 'online',
+    message: 'Backend API terhubung realtime!',
+    timestamp: new Date().toISOString()
+  });
+});
+
+apiRouter.post('/echo', (req, res) => {
+  res.json({
+    received: req.body,
+    serverNote: 'Data berhasil diproses oleh backend'
+  });
+});`
     }
   },
   'public/index.html': {
     file: {
       contents: `<!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Preview</title>
-  <style>
-    body { font-family: sans-serif; text-align: center; padding: 40px; }
-    button { background: #7c5cfc; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Frontend App</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h2>Web App Berjalan</h2>
-  <button id="btn">Fetch API</button>
-  <p id="out"></p>
-  <script>
-    document.getElementById('btn').onclick = async () => {
-      const res = await fetch('/api/data');
-      const data = await res.json();
-      document.getElementById('out').innerText = data.message;
-    };
-  <\/script>
+  <div class="card">
+    <div class="badge">Live Fullstack Preview</div>
+    <h1>RunnerBox Studio</h1>
+    <p>Frontend terhubung dengan subfolder backend secara utuh.</p>
+    
+    <button id="btn-fetch">Panggil Backend API</button>
+    <div id="output-box" class="output">Menunggu klik...</div>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>`
+    }
+  },
+  'public/style.css': {
+    file: {
+      contents: `body {
+  margin: 0;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #0f172a;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80vh;
+}
+.card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 340px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+.badge {
+  display: inline-block;
+  background: rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+h1 { font-size: 20px; margin-bottom: 8px; }
+p { font-size: 12px; color: #94a3b8; line-height: 1.5; margin-bottom: 16px; }
+button {
+  background: #8b5cf6;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  width: 100%;
+}
+.output {
+  margin-top: 14px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 10px;
+  font-family: monospace;
+  font-size: 11px;
+  color: #38bdf8;
+  word-break: break-all;
+}`
+    }
+  },
+  'public/script.js': {
+    file: {
+      contents: `document.getElementById('btn-fetch').onclick = async () => {
+  const out = document.getElementById('output-box');
+  out.innerText = 'Mengambil data backend...';
+  try {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    out.innerText = JSON.stringify(data, null, 2);
+  } catch (err) {
+    out.innerText = 'Gagal request: ' + err.message;
+  }
+};`
     }
   }
 };
 
+// 2. STATE PERSISTENCE DENGAN LOCALSTORAGE
+let files = JSON.parse(localStorage.getItem('runner_project_files')) || DEFAULT_PROJECT_FILES;
+let activeFile = 'public/index.html';
 let currentTab = 'pane-files';
-let activeFile = 'server.js';
 let webcontainerInstance = null;
 
-// Elements
-const fileListEl = document.getElementById('file-list');
-const editorEl = document.getElementById('code-editor');
-const lineNumbersEl = document.getElementById('line-numbers');
-const labelActiveFile = document.getElementById('label-active-file');
-const inputFilename = document.getElementById('input-filename');
-const btnCreateFile = document.getElementById('btn-create-file');
+// DOM Elements
+const treeList = document.getElementById('tree-list');
+const codeEditor = document.getElementById('code-editor');
+const lineGutter = document.getElementById('line-gutter');
+const currentFileLabel = document.getElementById('current-file-label');
+const inputNewPath = document.getElementById('input-new-path');
+const btnAddFile = document.getElementById('btn-add-file');
 const btnRun = document.getElementById('btn-run');
+const btnReset = document.getElementById('btn-reset');
+const btnExport = document.getElementById('btn-export');
+const btnClearTerm = document.getElementById('btn-clear-term');
 const previewFrame = document.getElementById('preview-frame');
-const previewIdle = document.getElementById('preview-idle');
-const terminalEl = document.getElementById('terminal-output');
-const repoNameInput = document.getElementById('repo-name-input');
+const previewEmpty = document.getElementById('preview-empty');
+const terminalStream = document.getElementById('terminal-stream');
+const fileCounter = document.getElementById('file-counter');
+const repoName = document.getElementById('repo-name');
 
 function logTerminal(text) {
-  terminalEl.textContent += '\n' + text;
-  terminalEl.scrollTop = terminalEl.scrollHeight;
+  terminalStream.textContent += '\n' + text;
+  terminalStream.scrollTop = terminalStream.scrollHeight;
 }
 
-// 1. Tombol Back HP Handling (Supaya tidak langsung keluar web)
-history.replaceState({ tab: 'pane-files' }, '');
+btnClearTerm.onclick = () => {
+  terminalStream.textContent = 'Terminal cleared.';
+};
 
-window.addEventListener('popstate', (e) => {
+function saveToLocalStorage() {
+  localStorage.setItem('runner_project_files', JSON.stringify(files));
+}
+
+// 3. ANDROID BACK BUTTON HANDLING
+history.replaceState({ tab: 'pane-files' }, '');
+window.addEventListener('popstate', () => {
   if (currentTab !== 'pane-files') {
-    // Jika sedang di editor atau preview, kembalikan ke tab Files
     switchTab('pane-files', false);
   } else {
-    // Jika sudah di Files dan user pencet back lagi, beri konfirmasi keluar
-    if (confirm('Yakin ingin menutup web RunnerBox?')) {
+    if (confirm('Keluar dari Runner Studio?')) {
       history.back();
     } else {
       history.pushState({ tab: 'pane-files' }, '');
@@ -114,143 +217,187 @@ window.addEventListener('popstate', (e) => {
 
 function switchTab(targetPaneId, push = true) {
   if (currentTab === targetPaneId) return;
-  saveActiveContent();
+  saveActiveFile();
 
   currentTab = targetPaneId;
-  document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.dock-btn').forEach(btn => btn.classList.remove('active'));
 
   document.getElementById(targetPaneId).classList.add('active');
-  const activeNav = document.querySelector(`[data-target="${targetPaneId}"]`);
-  if (activeNav) activeNav.classList.add('active');
+  const targetNav = document.querySelector(`[data-target="${targetPaneId}"]`);
+  if (targetNav) targetNav.classList.add('active');
 
-  if (push) {
-    history.pushState({ tab: targetPaneId }, '');
-  }
+  if (push) history.pushState({ tab: targetPaneId }, '');
 }
 
-document.querySelectorAll('.nav-item').forEach(btn => {
+document.querySelectorAll('.dock-btn').forEach(btn => {
   btn.onclick = () => switchTab(btn.getAttribute('data-target'));
 });
 
-// 2. File Explorer & Path Struktur
-function updateLineNumbers() {
-  const lineCount = editorEl.value.split('\n').length;
-  lineNumbersEl.innerHTML = Array.from({ length: lineCount }, (_, i) => i + 1).join('<br>');
+// 4. EDITOR LINE NUMBERS & AUTOSAVE
+function updateGutter() {
+  const lines = codeEditor.value.split('\n').length;
+  lineGutter.innerHTML = Array.from({ length: lines }, (_, i) => i + 1).join('<br>');
 }
 
-function renderFiles() {
-  fileListEl.innerHTML = '';
-  Object.keys(files).forEach((filePath) => {
-    const parts = filePath.split('/');
+codeEditor.addEventListener('input', () => {
+  saveActiveFile();
+  updateGutter();
+  saveToLocalStorage();
+});
+
+codeEditor.addEventListener('scroll', () => {
+  lineGutter.scrollTop = codeEditor.scrollTop;
+});
+
+function loadActiveFile() {
+  if (activeFile && files[activeFile]) {
+    codeEditor.value = files[activeFile].file.contents;
+    currentFileLabel.textContent = activeFile;
+    codeEditor.disabled = false;
+  } else {
+    codeEditor.value = '';
+    currentFileLabel.textContent = 'None';
+    codeEditor.disabled = true;
+  }
+  updateGutter();
+}
+
+function saveActiveFile() {
+  if (activeFile && files[activeFile]) {
+    files[activeFile].file.contents = codeEditor.value;
+  }
+}
+
+// 5. TREE EXPLORER (BISA SUBFOLDER APAPUN)
+function renderTree() {
+  treeList.innerHTML = '';
+  const fileKeys = Object.keys(files);
+  fileCounter.textContent = `${fileKeys.length} File`;
+
+  fileKeys.forEach(path => {
+    const parts = path.split('/');
     const fileName = parts.pop();
     const folderPath = parts.length ? parts.join('/') + '/' : '';
-    const ext = fileName.split('.').pop() || 'file';
+    const ext = fileName.split('.').pop() || 'txt';
 
     const li = document.createElement('li');
-    li.className = `file-item ${filePath === activeFile ? 'active' : ''}`;
+    li.className = `tree-item ${path === activeFile ? 'active' : ''}`;
     
     li.innerHTML = `
-      <div class="file-info">
-        <div class="file-badge">${ext.substring(0, 4)}</div>
-        <span class="file-path">
-          <span class="file-folder-prefix">${folderPath}</span>${fileName}
-        </span>
+      <div class="tree-left">
+        <div class="tree-icon">${ext.slice(0, 3).toUpperCase()}</div>
+        <div class="tree-path">
+          <span class="tree-folder">${folderPath}</span><span class="tree-file">${fileName}</span>
+        </div>
       </div>
-      <button class="file-del" data-path="${filePath}">✕</button>
+      <button class="tree-del" data-path="${path}">✕</button>
     `;
 
     li.onclick = (e) => {
-      if (e.target.classList.contains('file-del')) return;
-      saveActiveContent();
-      activeFile = filePath;
-      loadActiveContent();
-      renderFiles();
+      if (e.target.classList.contains('tree-del')) return;
+      saveActiveFile();
+      activeFile = path;
+      loadActiveFile();
+      renderTree();
       switchTab('pane-editor');
     };
 
-    li.querySelector('.file-del').onclick = (e) => {
+    li.querySelector('.tree-del').onclick = (e) => {
       e.stopPropagation();
-      deleteFile(filePath);
+      deleteFilePath(path);
     };
 
-    fileListEl.appendChild(li);
+    treeList.appendChild(li);
   });
 }
 
-function loadActiveContent() {
-  if (activeFile && files[activeFile]) {
-    editorEl.value = files[activeFile].file.contents;
-    labelActiveFile.textContent = activeFile;
-    editorEl.disabled = false;
-  } else {
-    editorEl.value = '';
-    labelActiveFile.textContent = 'None';
-    editorEl.disabled = true;
-  }
-  updateLineNumbers();
-}
+btnAddFile.onclick = () => {
+  let p = inputNewPath.value.trim().replace(/^\/+|\/+$/g, '');
+  if (!p) return alert('Ketik nama file atau struktur folder!');
+  if (files[p]) return alert('File ini sudah ada!');
 
-function saveActiveContent() {
-  if (activeFile && files[activeFile]) {
-    files[activeFile].file.contents = editorEl.value;
-  }
-}
-
-editorEl.addEventListener('input', () => {
-  saveActiveContent();
-  updateLineNumbers();
-});
-
-editorEl.addEventListener('scroll', () => {
-  lineNumbersEl.scrollTop = editorEl.scrollTop;
-});
-
-// Buat File & Struktur Folder Baru (contoh: routes/auth/login.js)
-btnCreateFile.onclick = () => {
-  let path = inputFilename.value.trim();
-  if (!path) return alert('Ketik nama file atau path folder!');
-  
-  // Normalisasi path
-  path = path.replace(/^\/+|\/+$/g, '');
-  if (files[path]) return alert('File atau path ini sudah ada!');
-
-  files[path] = { file: { contents: '' } };
-  inputFilename.value = '';
-  saveActiveContent();
-  activeFile = path;
-  loadActiveContent();
-  renderFiles();
+  files[p] = { file: { contents: '' } };
+  inputNewPath.value = '';
+  saveActiveFile();
+  activeFile = p;
+  saveToLocalStorage();
+  loadActiveFile();
+  renderTree();
   switchTab('pane-editor');
 };
 
-function deleteFile(path) {
-  if (Object.keys(files).length <= 1) {
-    return alert('Minimal harus ada 1 file di project!');
-  }
-  if (confirm(`Hapus "${path}"?`)) {
+function deleteFilePath(path) {
+  if (Object.keys(files).length <= 1) return alert('Project minimal punya 1 file!');
+  if (confirm(`Hapus file "${path}"?`)) {
     delete files[path];
     if (activeFile === path) {
       activeFile = Object.keys(files)[0];
     }
-    loadActiveContent();
-    renderFiles();
+    saveToLocalStorage();
+    loadActiveFile();
+    renderTree();
   }
 }
 
-// 3. Execution (WebContainer / Fallback Panel)
-function buildFSTree(fileMap) {
+// 6. FITUR EKSTRA: RESET & DOWNLOAD BACKUP
+btnReset.onclick = () => {
+  if (confirm('Kembalikan ke struktur default awal? Kodingan saat ini akan di-reset.')) {
+    files = JSON.parse(JSON.stringify(DEFAULT_PROJECT_FILES));
+    activeFile = 'public/index.html';
+    saveToLocalStorage();
+    renderTree();
+    loadActiveFile();
+    alert('Project berhasil di-reset!');
+  }
+};
+
+btnExport.onclick = () => {
+  const blob = new Blob([JSON.stringify(files, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${repoName.value || 'project'}-structure.json`;
+  a.click();
+};
+
+// 7. PREVIEW INSTAN JIKA HANYA STATIC HTML
+function renderStaticInstantPreview() {
+  const htmlFile = files['public/index.html'] || files['index.html'];
+  if (!htmlFile) return false;
+
+  let htmlContent = htmlFile.file.contents;
+  
+  // Inject CSS jika ada
+  const cssFile = files['public/style.css'] || files['style.css'];
+  if (cssFile) {
+    htmlContent = htmlContent.replace('</head>', `<style>${cssFile.file.contents}</style></head>`);
+  }
+
+  // Inject JS jika ada
+  const jsFile = files['public/script.js'] || files['script.js'];
+  if (jsFile) {
+    htmlContent = htmlContent.replace('</body>', `<script>${jsFile.file.contents}<\/script></body>`);
+  }
+
+  previewEmpty.style.display = 'none';
+  previewFrame.style.display = 'block';
+  previewFrame.srcdoc = htmlContent;
+  return true;
+}
+
+// 8. RUNNER ENGINE REALTIME (PANEL + WEBCONTAINER DUAL MODE)
+function buildNestedFS(map) {
   const tree = {};
-  for (const [path, data] of Object.entries(fileMap)) {
-    const parts = path.split('/');
-    let current = tree;
+  for (const [p, d] of Object.entries(map)) {
+    const parts = p.split('/');
+    let cur = tree;
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
       if (i === parts.length - 1) {
-        current[part] = { file: { contents: data.file.contents } };
+        cur[part] = { file: { contents: d.file.contents } };
       } else {
-        if (!current[part]) current[part] = { directory: {} };
-        current = current[part].directory;
+        if (!cur[part]) cur[part] = { directory: {} };
+        cur = cur[part].directory;
       }
     }
   }
@@ -258,57 +405,80 @@ function buildFSTree(fileMap) {
 }
 
 btnRun.onclick = async () => {
-  saveActiveContent();
+  saveActiveFile();
+  saveToLocalStorage();
   btnRun.disabled = true;
   btnRun.innerHTML = '<span>⏳</span> Running...';
   switchTab('pane-preview');
-  terminalEl.textContent = `[${repoNameInput.value}] Memulai proses...`;
+  logTerminal(`\n[${new Date().toLocaleTimeString()}] Memulai eksekusi project...`);
 
+  // Langkah 1: Render preview statis terlebih dahulu agar tidak ada layar putih kosong
+  renderStaticInstantPreview();
+
+  // Langkah 2: Coba kirim ke server Panel jika aktif
+  let panelSuccess = false;
   try {
-    if (!webcontainerInstance) {
-      logTerminal('Menyiapkan engine container...');
-      webcontainerInstance = await WebContainer.boot();
+    logTerminal(`Mencoba menghubungkan ke Panel Runner (${PANEL_RUNNER_URL})...`);
+    const panelRes = await fetch(`${PANEL_RUNNER_URL}/api/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectName: repoName.value,
+        files: files
+      })
+    });
 
-      webcontainerInstance.on('server-ready', (port, url) => {
-        logTerminal(`🚀 Server aktif di port ${port}`);
-        previewIdle.style.display = 'none';
-        previewFrame.style.display = 'block';
-        previewFrame.src = url;
-      });
+    if (panelRes.ok) {
+      const pData = await panelRes.json();
+      logTerminal(`🚀 Sukses di Panel: ${pData.message}`);
+      panelSuccess = true;
     }
-
-    logTerminal('Mounting struktur folder dan file...');
-    const tree = buildFSTree(files);
-    await webcontainerInstance.mount(tree);
-
-    logTerminal('Menjalankan npm install...');
-    const install = await webcontainerInstance.spawn('npm', ['install']);
-    install.output.pipeTo(new WritableStream({
-      write(chunk) { logTerminal(chunk); }
-    }));
-
-    const code = await install.exit;
-    if (code !== 0) {
-      logTerminal('npm install selesai dengan error.');
-      btnRun.disabled = false;
-      btnRun.innerHTML = '<span>▶</span> Run';
-      return;
-    }
-
-    logTerminal('Menjalankan npm start...');
-    const start = await webcontainerInstance.spawn('npm', ['start']);
-    start.output.pipeTo(new WritableStream({
-      write(chunk) { logTerminal(chunk); }
-    }));
-
   } catch (err) {
-    logTerminal('Container Error: ' + err.message);
-  } finally {
-    btnRun.disabled = false;
-    btnRun.innerHTML = '<span>🔄</span> Restart';
+    logTerminal(`Panel offline / unreachable (${err.message}). Beralih ke WebContainer browser...`);
   }
+
+  // Langkah 3: Jika panel gagal atau sedang offline, jalankan via WebContainer Node.js
+  if (!panelSuccess) {
+    try {
+      if (!webcontainerInstance) {
+        logTerminal('Memulai WebContainer engine di browser...');
+        webcontainerInstance = await WebContainer.boot();
+        
+        webcontainerInstance.on('server-ready', (port, url) => {
+          logTerminal(`🚀 Backend siap mendengarkan port ${port}!`);
+          previewEmpty.style.display = 'none';
+          previewFrame.style.display = 'block';
+          previewFrame.removeAttribute('srcdoc');
+          previewFrame.src = url;
+        });
+      }
+
+      logTerminal('Mounting seluruh pohon folder...');
+      const fsTree = buildNestedFS(files);
+      await webcontainerInstance.mount(fsTree);
+
+      logTerminal('Menjalankan npm install...');
+      const procInstall = await webcontainerInstance.spawn('npm', ['install']);
+      procInstall.output.pipeTo(new WritableStream({
+        write(d) { logTerminal(d); }
+      }));
+      await procInstall.exit;
+
+      logTerminal('Menjalankan backend server (npm start)...');
+      const procStart = await webcontainerInstance.spawn('npm', ['start']);
+      procStart.output.pipeTo(new WritableStream({
+        write(d) { logTerminal(d); }
+      }));
+
+    } catch (error) {
+      logTerminal(`Container Notice: ${error.message}`);
+    }
+  }
+
+  btnRun.disabled = false;
+  btnRun.innerHTML = '<span>🔄</span> Restart';
 };
 
-// Initial Setup
-renderFiles();
-loadActiveContent();
+// Initial Start
+renderTree();
+loadActiveFile();
