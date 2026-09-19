@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>GitHub Runner Studio</title>
+  <title>GitHub Runner Studio Pro</title>
   <style>
     :root {
       --gh-bg: #0d1117;
@@ -16,7 +16,6 @@
       --gh-muted: #8b949e;
       --gh-blue: #58a6ff;
       --gh-green: #238636;
-      --gh-green-hover: #2ea043;
       --gh-red: #f85149;
       --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
       --font-code: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
@@ -34,7 +33,6 @@
       overflow: hidden;
     }
 
-    /* Fixed Top Header */
     header {
       background: var(--gh-header);
       border-bottom: 1px solid var(--gh-border);
@@ -50,15 +48,9 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      overflow: hidden;
     }
 
-    .brand-box svg {
-      width: 22px;
-      height: 22px;
-      fill: var(--gh-text-white);
-      flex-shrink: 0;
-    }
+    .brand-box svg { width: 22px; height: 22px; fill: var(--gh-text-white); }
 
     .repo-path {
       display: flex;
@@ -66,8 +58,6 @@
       gap: 4px;
       font-size: 13px;
     }
-
-    .repo-path span { color: var(--gh-muted); }
 
     #input-repo-title {
       background: var(--gh-bg);
@@ -79,15 +69,6 @@
       padding: 3px 8px;
       outline: none;
       width: 120px;
-    }
-
-    #input-repo-title:focus { border-color: var(--gh-blue); }
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-shrink: 0;
     }
 
     .btn-main-run {
@@ -102,13 +83,10 @@
       display: flex;
       align-items: center;
       gap: 5px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     }
 
-    .btn-main-run:active { transform: scale(0.96); }
     .btn-main-run:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    /* Main Area */
     main {
       flex: 1;
       position: relative;
@@ -123,7 +101,7 @@
 
     .view-pane.active { display: flex; }
 
-    /* TAB 1: REPO FILE EXPLORER */
+    /* TAB 1: FILES */
     .repo-container {
       flex: 1;
       overflow-y: auto;
@@ -131,6 +109,40 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
+    }
+
+    .panel-server-config {
+      background: var(--gh-header);
+      border: 1px solid var(--gh-border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .panel-config-title {
+      font-size: 11px;
+      color: var(--gh-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .panel-input-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    #input-panel-url {
+      flex: 1;
+      background: var(--gh-bg);
+      border: 1px solid var(--gh-border);
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 11px;
+      color: var(--gh-blue);
+      outline: none;
+      font-family: var(--font-code);
     }
 
     .toolbar-actions {
@@ -166,7 +178,6 @@
       cursor: pointer;
     }
 
-    /* Add Item Box */
     .add-item-card {
       background: var(--gh-header);
       border: 1px solid var(--gh-border);
@@ -187,8 +198,6 @@
       outline: none;
       font-family: var(--font-code);
     }
-
-    .add-item-card input:focus { border-color: var(--gh-blue); }
 
     .add-item-card button {
       background: var(--gh-green);
@@ -211,9 +220,6 @@
       padding: 2px 0;
     }
 
-    .breadcrumb-row span { color: var(--gh-muted); font-weight: normal; }
-
-    /* GitHub Structure Table */
     .gh-table {
       border: 1px solid var(--gh-border);
       border-radius: 6px;
@@ -242,15 +248,7 @@
     }
 
     .gh-item-row:last-child { border-bottom: none; }
-    .gh-item-row:hover { background: #161b22; }
-
-    .gh-item-left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      overflow: hidden;
-    }
-
+    .gh-item-left { display: flex; align-items: center; gap: 10px; overflow: hidden; }
     .gh-item-icon svg { width: 16px; height: 16px; display: block; }
     .icon-folder svg { fill: #54aeff; }
     .icon-file svg { fill: var(--gh-muted); }
@@ -273,207 +271,37 @@
       cursor: pointer;
       padding: 4px 8px;
       font-size: 13px;
-      border-radius: 4px;
     }
 
-    .gh-item-del:hover { color: var(--gh-red); background: rgba(248,81,73,0.15); }
+    /* TAB 2: EDITOR */
+    .editor-wrapper { height: 100%; display: flex; flex-direction: column; background: #0d1117; }
+    .editor-bar { background: var(--gh-header); border-bottom: 1px solid var(--gh-border); padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; }
+    .editor-filename { font-family: var(--font-code); font-size: 12px; color: var(--gh-text-white); font-weight: 600; }
+    .editor-core { flex: 1; display: flex; overflow: hidden; }
+    .editor-gutter { width: 42px; background: #090d13; border-right: 1px solid var(--gh-border); color: var(--gh-muted); font-family: var(--font-code); font-size: 12px; line-height: 20px; padding: 12px 6px; text-align: right; user-select: none; }
+    #code-editor { flex: 1; background: transparent; border: none; outline: none; padding: 12px; color: var(--gh-text-white); font-family: var(--font-code); font-size: 12px; line-height: 20px; resize: none; white-space: pre; overflow: auto; tab-size: 2; }
 
-    /* TAB 2: CODE STUDIO */
-    .editor-wrapper {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      background: #0d1117;
-    }
+    /* TAB 3: PREVIEW */
+    .preview-wrapper { height: 100%; display: flex; flex-direction: column; }
+    .preview-top-bar { background: var(--gh-header); border-bottom: 1px solid var(--gh-border); padding: 6px 12px; display: flex; align-items: center; justify-content: space-between; }
+    .preview-url-badge { font-family: var(--font-code); font-size: 11px; color: var(--gh-blue); }
+    .btn-open-newtab { background: var(--gh-btn-bg); border: 1px solid var(--gh-btn-border); color: var(--gh-text-white); font-size: 11px; padding: 4px 10px; border-radius: 4px; text-decoration: none; }
+    .preview-frame-box { flex: 1; background: #ffffff; position: relative; }
+    #preview-frame { width: 100%; height: 100%; border: none; }
+    .preview-empty { position: absolute; inset: 0; background: var(--gh-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; }
 
-    .editor-bar {
-      background: var(--gh-header);
-      border-bottom: 1px solid var(--gh-border);
-      padding: 8px 12px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+    .terminal-container { height: 130px; background: #010409; border-top: 1px solid var(--gh-border); display: flex; flex-direction: column; font-family: var(--font-code); font-size: 11px; }
+    .terminal-header { background: var(--gh-header); padding: 6px 12px; border-bottom: 1px solid var(--gh-border); display: flex; align-items: center; justify-content: space-between; color: var(--gh-muted); }
+    #terminal-stream { flex: 1; padding: 8px 12px; overflow-y: auto; color: #7ee787; white-space: pre-wrap; line-height: 18px; }
 
-    .editor-filename {
-      font-family: var(--font-code);
-      font-size: 12px;
-      color: var(--gh-text-white);
-      font-weight: 600;
-    }
-
-    .editor-status { font-size: 11px; color: var(--gh-muted); }
-
-    .editor-core {
-      flex: 1;
-      display: flex;
-      overflow: hidden;
-    }
-
-    .editor-gutter {
-      width: 42px;
-      background: #090d13;
-      border-right: 1px solid var(--gh-border);
-      color: var(--gh-muted);
-      font-family: var(--font-code);
-      font-size: 12px;
-      line-height: 20px;
-      padding: 12px 6px;
-      text-align: right;
-      user-select: none;
-    }
-
-    #code-editor {
-      flex: 1;
-      background: transparent;
-      border: none;
-      outline: none;
-      padding: 12px;
-      color: var(--gh-text-white);
-      font-family: var(--font-code);
-      font-size: 12px;
-      line-height: 20px;
-      resize: none;
-      white-space: pre;
-      overflow: auto;
-      tab-size: 2;
-    }
-
-    /* TAB 3: RUNTIME PREVIEW */
-    .preview-wrapper {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .preview-top-bar {
-      background: var(--gh-header);
-      border-bottom: 1px solid var(--gh-border);
-      padding: 6px 12px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .preview-url-badge {
-      font-family: var(--font-code);
-      font-size: 11px;
-      color: var(--gh-blue);
-      text-decoration: none;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .btn-open-newtab {
-      background: var(--gh-btn-bg);
-      border: 1px solid var(--gh-btn-border);
-      color: var(--gh-text-white);
-      font-size: 11px;
-      padding: 4px 10px;
-      border-radius: 4px;
-      text-decoration: none;
-      cursor: pointer;
-    }
-
-    .preview-frame-box {
-      flex: 1;
-      background: #ffffff;
-      position: relative;
-    }
-
-    #preview-frame {
-      width: 100%;
-      height: 100%;
-      border: none;
-      background: #fff;
-    }
-
-    .preview-empty {
-      position: absolute;
-      inset: 0;
-      background: var(--gh-bg);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      text-align: center;
-    }
-
-    .preview-empty svg {
-      width: 44px;
-      height: 44px;
-      fill: var(--gh-muted);
-      margin-bottom: 12px;
-    }
-
-    .terminal-container {
-      height: 130px;
-      background: #010409;
-      border-top: 1px solid var(--gh-border);
-      display: flex;
-      flex-direction: column;
-      font-family: var(--font-code);
-      font-size: 11px;
-    }
-
-    .terminal-header {
-      background: var(--gh-header);
-      padding: 6px 12px;
-      border-bottom: 1px solid var(--gh-border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      color: var(--gh-muted);
-    }
-
-    #terminal-stream {
-      flex: 1;
-      padding: 8px 12px;
-      overflow-y: auto;
-      color: #7ee787;
-      white-space: pre-wrap;
-      line-height: 18px;
-    }
-
-    /* Bottom Navigation Dock */
-    nav.bottom-dock {
-      background: var(--gh-header);
-      border-top: 1px solid var(--gh-border);
-      height: 54px;
-      display: flex;
-      align-items: center;
-      justify-content: space-around;
-      padding: 0 4px;
-    }
-
-    .dock-tab {
-      background: transparent;
-      border: none;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 3px;
-      color: var(--gh-muted);
-      cursor: pointer;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 6px 16px;
-      border-radius: 6px;
-    }
-
+    nav.bottom-dock { background: var(--gh-header); border-top: 1px solid var(--gh-border); height: 54px; display: flex; align-items: center; justify-content: space-around; padding: 0 4px; }
+    .dock-tab { background: transparent; border: none; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--gh-muted); cursor: pointer; font-size: 11px; font-weight: 600; padding: 6px 16px; border-radius: 6px; }
     .dock-tab svg { width: 17px; height: 17px; fill: currentColor; }
-
-    .dock-tab.active {
-      color: var(--gh-blue);
-      background: rgba(88, 166, 255, 0.1);
-    }
+    .dock-tab.active { color: var(--gh-blue); background: rgba(88, 166, 255, 0.1); }
   </style>
 </head>
 <body>
 
-  <!-- Top Navigation Header -->
   <header>
     <div class="brand-box">
       <svg viewBox="0 0 16 16"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>
@@ -482,21 +310,24 @@
         <input id="input-repo-title" type="text" value="chat-ai-workspace" spellcheck="false" />
       </div>
     </div>
-
-    <div class="header-actions">
-      <button id="btn-run-all" class="btn-main-run">
-        <span>▶</span> Run Project
-      </button>
-    </div>
+    <button id="btn-run-all" class="btn-main-run">
+      <span>▶</span> Run Project
+    </button>
   </header>
 
-  <!-- Viewports -->
   <main>
-    
-    <!-- 1. CODE STRUCTURE TAB -->
+    <!-- TAB 1: FILES -->
     <section id="pane-files" class="view-pane active">
       <div class="repo-container">
-        
+
+        <!-- Input URL Server Tunnel Panel -->
+        <div class="panel-server-config">
+          <span class="panel-config-title">Panel HTTPS Tunnel URL</span>
+          <div class="panel-input-row">
+            <input id="input-panel-url" type="text" placeholder="https://xxxxx.loca.lt" />
+          </div>
+        </div>
+
         <div class="toolbar-actions">
           <div class="branch-tag">
             <svg viewBox="0 0 16 16"><path d="M11.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm-2.25.75a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25Zm-5.5 8a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM4.25 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Z"/></svg>
@@ -505,22 +336,19 @@
           <button id="btn-toggle-add" class="btn-add-toggle">+ Add File / Folder</button>
         </div>
 
-        <!-- Add Input Box -->
         <div id="box-add-item" class="add-item-card" style="display: none;">
-          <input id="input-new-item" type="text" placeholder="Nama file (contoh: public/index.html atau api/index.js)" />
+          <input id="input-new-item" type="text" placeholder="Nama file (contoh: public/index.html)" />
           <button id="btn-confirm-add">Simpan</button>
         </div>
 
-        <!-- Breadcrumb Navigasi Folder -->
         <div class="breadcrumb-row">
           <span id="bc-root-label" style="cursor: pointer; color: var(--gh-blue);">chat-ai-workspace</span>
           <span id="bc-dynamic-path"></span>
         </div>
 
-        <!-- Tabel Struktur File -->
         <div class="gh-table">
           <div class="gh-table-head">
-            <span>Struktur Project Repository</span>
+            <span>Struktur Project</span>
             <span id="item-count-badge">0 item</span>
           </div>
           <div id="table-file-rows"></div>
@@ -529,33 +357,32 @@
       </div>
     </section>
 
-    <!-- 2. CODE STUDIO TAB -->
+    <!-- TAB 2: EDITOR -->
     <section id="pane-editor" class="view-pane">
       <div class="editor-wrapper">
         <div class="editor-bar">
           <span class="editor-filename" id="editor-active-filename">None</span>
-          <span class="editor-status">Tersimpan</span>
+          <span style="font-size: 11px; color: var(--gh-muted);">Tersimpan</span>
         </div>
         <div class="editor-core">
           <div class="editor-gutter" id="editor-gutter">1</div>
-          <textarea id="code-editor" spellcheck="false" placeholder="Tulis kodinganmu di sini..."></textarea>
+          <textarea id="code-editor" spellcheck="false" placeholder="Tulis kodinganmu..."></textarea>
         </div>
       </div>
     </section>
 
-    <!-- 3. RUNTIME PREVIEW TAB -->
+    <!-- TAB 3: PREVIEW -->
     <section id="pane-preview" class="view-pane">
       <div class="preview-wrapper">
         <div class="preview-top-bar">
-          <span class="preview-url-badge" id="preview-url-label">http://erine.jkt48node.id:3668</span>
-          <a id="btn-open-external" href="http://erine.jkt48node.id:3668" target="_blank" class="btn-open-newtab">↗ Buka di Tab Baru</a>
+          <span class="preview-url-badge" id="preview-url-label">Menunggu deploy...</span>
+          <a id="btn-open-external" href="#" target="_blank" class="btn-open-newtab" style="display: none;">↗ Buka Fullscreen</a>
         </div>
         <div class="preview-frame-box">
           <div id="preview-empty" class="preview-empty">
-            <svg viewBox="0 0 16 16"><path d="M0 8a8 8 0 1 1 0 16A8 8 0 0 1 8 0Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13Z"/><path d="M6.5 5.5v5l4-2.5-4-2.5Z"/></svg>
             <p style="font-size: 13px; font-weight: 600; color: var(--gh-text-white); margin-bottom: 4px;">Hasil Preview</p>
             <p style="font-size: 11px; color: var(--gh-muted); max-width: 260px;">
-              Tekan tombol <strong>Run Project</strong> untuk mengeksekusi project di server panel.
+              Tekan tombol <strong>Run Project</strong> untuk mengeksekusi di server panel.
             </p>
           </div>
           <iframe id="preview-frame" style="display: none;"></iframe>
@@ -563,17 +390,15 @@
 
         <div class="terminal-container">
           <div class="terminal-header">
-            <span>Terminal / Server Log</span>
+            <span>Terminal / Deployment Log</span>
             <span id="terminal-badge" style="color: var(--gh-blue);">Idle</span>
           </div>
           <pre id="terminal-stream">Siap untuk menjalankan project.</pre>
         </div>
       </div>
     </section>
-
   </main>
 
-  <!-- Bottom Navigation -->
   <nav class="bottom-dock">
     <button class="dock-tab active" data-target="pane-files">
       <svg viewBox="0 0 16 16"><path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25H12v1.5H5.25a.25.25 0 0 1-.25-.25Z"/></svg>
