@@ -1,6 +1,6 @@
 import { WebContainer } from 'https://cdn.jsdelivr.net/npm/@webcontainer/api@1.6.4/+esm';
 
-// Struktur Awal Standar yang Benar
+// Default Workspace Files
 const DEFAULT_FILES = {
   'package.json': {
     file: {
@@ -9,7 +9,7 @@ const DEFAULT_FILES = {
         version: "1.0.0",
         type: "module",
         scripts: {
-          "start": "node server.js"
+          "start": "node api/index.js"
         },
         dependencies: {
           "express": "^4.18.2",
@@ -18,24 +18,36 @@ const DEFAULT_FILES = {
       }, null, 2)
     }
   },
-  'server.js': {
+  'api/index.js': {
     file: {
       contents: `import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
 
-app.get('/api/halo', (req, res) => {
-  res.json({ status: true, message: 'Halo dari Backend Express!' });
+// Melayani file frontend statis dari folder public
+const publicPath = path.join(__dirname, '../public');
+app.use(express.static(publicPath));
+
+app.get('/api/status', (req, res) => {
+  res.json({
+    status: 'online',
+    message: 'Backend Express berhasil terhubung!',
+    timestamp: new Date().toLocaleTimeString()
+  });
 });
 
 app.listen(PORT, () => {
-  console.log('✅ Server berjalan di port ' + PORT);
+  console.log('✅ Server aktif di port ' + PORT);
 });`
     }
   },
@@ -44,18 +56,19 @@ app.listen(PORT, () => {
       contents: `<!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <title>Preview Frontend</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>App Preview</title>
   <style>
     body {
-      font-family: -apple-system, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: #0d1117;
       color: #f0f6fc;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 80vh;
+      min-height: 85vh;
       margin: 0;
       padding: 20px;
     }
@@ -67,43 +80,51 @@ app.listen(PORT, () => {
       max-width: 320px;
       width: 100%;
       text-align: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
     }
+    h2 { font-size: 18px; margin-bottom: 8px; color: #58a6ff; }
+    p { font-size: 12px; color: #8b949e; line-height: 1.5; margin-bottom: 16px; }
     button {
       background: #238636;
       color: white;
-      border: none;
+      border: 1px solid rgba(240,246,252,0.1);
       padding: 10px 18px;
       border-radius: 6px;
       font-weight: 600;
       cursor: pointer;
-      margin-top: 14px;
+      width: 100%;
     }
-    #res {
+    .result {
       margin-top: 14px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 10px;
       font-family: monospace;
-      font-size: 12px;
-      color: #58a6ff;
+      font-size: 11px;
+      color: #7ee787;
+      word-break: break-all;
     }
   </style>
 </head>
 <body>
   <div class="card">
-    <h3>Frontend Berjalan Normal</h3>
-    <p style="font-size: 12px; color: #8b949e;">File dari public/index.html</p>
-    <button id="btn">Panggil Backend</button>
-    <div id="res"></div>
+    <h2>Project Runner Live</h2>
+    <p>Frontend dari folder <code>public/index.html</code> terhubung dengan backend Express.</p>
+    <button id="btn-fetch">Tes API Backend</button>
+    <div id="output" class="result">Menunggu interaksi...</div>
   </div>
 
   <script>
-    document.getElementById('btn').onclick = async () => {
-      const el = document.getElementById('res');
-      el.innerText = 'Mengambil respon backend...';
+    document.getElementById('btn-fetch').onclick = async () => {
+      const out = document.getElementById('output');
+      out.innerText = 'Mengambil data dari /api/status...';
       try {
-        const res = await fetch('/api/halo');
+        const res = await fetch('/api/status');
         const data = await res.json();
-        el.innerText = data.message;
+        out.innerText = JSON.stringify(data, null, 2);
       } catch (err) {
-        el.innerText = 'Error: ' + err.message;
+        out.innerText = 'Error fetch: ' + err.message;
       }
     };
   <\/script>
@@ -113,12 +134,13 @@ app.listen(PORT, () => {
   }
 };
 
-// State Manager
+// State
 let files = JSON.parse(localStorage.getItem('my_project_files')) || DEFAULT_FILES;
 let currentFolder = '';
-let activeFilePath = 'public/index.html';
+let activeFilePath = 'api/index.js';
 let activeTab = 'pane-files';
 let webcontainerInstance = null;
+let currentProcess = null;
 
 // DOM
 const tableFileRows = document.getElementById('table-file-rows');
@@ -146,6 +168,31 @@ function logTerminal(msg) {
 
 function saveState() {
   localStorage.setItem('my_project_files', JSON.stringify(files));
+}
+
+// Display visual error in iframe if backend crashes
+function showIframeError(title, detail) {
+  previewEmpty.style.display = 'none';
+  previewFrame.style.display = 'block';
+  previewFrame.removeAttribute('src');
+  previewFrame.srcdoc = `<!DOCTYPE html>
+  <html>
+  <head>
+    <style>
+      body { background: #0d1117; color: #f85149; font-family: monospace; padding: 24px; }
+      .box { border: 1px solid #da3633; background: #161b22; border-radius: 8px; padding: 18px; }
+      h3 { margin-top: 0; color: #f85149; font-size: 16px; }
+      pre { color: #c9d1d9; background: #010409; padding: 12px; border-radius: 6px; overflow: auto; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="box">
+      <h3>⚠️ Execution Error: ${title}</h3>
+      <p style="color: #8b949e; font-size: 12px;">Server backend Anda gagal running karena ada kesalahan kode:</p>
+      <pre>${detail}</pre>
+    </div>
+  </body>
+  </html>`;
 }
 
 // 1. Android Back Handling
@@ -187,7 +234,7 @@ document.querySelectorAll('.dock-tab').forEach(b => {
   b.onclick = () => switchTab(b.getAttribute('data-target'));
 });
 
-// 2. Render Tabel Struktur File
+// 2. Table Render
 function renderTable() {
   tableFileRows.innerHTML = '';
   bcRootLabel.textContent = inputRepoTitle.value || 'my-project';
@@ -198,7 +245,6 @@ function renderTable() {
   const prefix = currentFolder ? currentFolder + '/' : '';
   const map = new Map();
 
-  // Tombol Back folder '..'
   if (currentFolder !== '') {
     const backRow = document.createElement('div');
     backRow.className = 'gh-item-row';
@@ -219,7 +265,6 @@ function renderTable() {
     tableFileRows.appendChild(backRow);
   }
 
-  // Parse path untuk memisahkan file dan folder
   Object.keys(files).forEach(path => {
     if (path.startsWith(prefix)) {
       const rest = path.slice(prefix.length);
@@ -291,7 +336,6 @@ btnToggleAdd.onclick = () => {
   if (boxAddItem.style.display === 'flex') inputNewItem.focus();
 };
 
-// Menambah File/Folder Baru Secara Manual (TIDAK AUTO-RUN)
 btnConfirmAdd.onclick = () => {
   let path = inputNewItem.value.trim().replace(/^\/+|\/+$/g, '');
   if (!path) return alert('Silakan masukkan nama file!');
@@ -369,7 +413,7 @@ function saveActiveEditorContent() {
   }
 }
 
-// 4. Helper: Mount Tree
+// 4. Build Tree
 function buildTreeFS(map) {
   const tree = {};
   for (const [p, d] of Object.entries(map)) {
@@ -388,7 +432,7 @@ function buildTreeFS(map) {
   return tree;
 }
 
-// 5. RUN PROJECT (HANYA BERJALAN KETIKA TOMBOL RUN DIKLIK)
+// 5. RUN ENGINE DENGAN LOG & ERROR DETECTION PENUH
 btnRunAll.onclick = async () => {
   saveActiveEditorContent();
   saveState();
@@ -399,80 +443,95 @@ btnRunAll.onclick = async () => {
   terminalBadge.style.color = '#e3b341';
 
   switchTab('pane-preview');
-  terminalStream.textContent = `[${inputRepoTitle.value}] Inisialisasi build project...`;
-
-  const hasServer = files['server.js'] || files['api/index.js'] || files['package.json'];
-  const htmlFile = files['public/index.html'] || files['index.html'];
+  terminalStream.textContent = `[${inputRepoTitle.value}] Menyiapkan runtime container...`;
 
   try {
-    if (hasServer) {
-      if (!webcontainerInstance) {
-        logTerminal('Memulai engine WebContainer Node.js...');
-        webcontainerInstance = await WebContainer.boot();
+    if (!webcontainerInstance) {
+      logTerminal('Menginisialisasi WebContainer di browser...');
+      webcontainerInstance = await WebContainer.boot();
 
-        webcontainerInstance.on('server-ready', (port, url) => {
-          logTerminal(`🚀 Server backend Express aktif di port ${port}!`);
-          previewEmpty.style.display = 'none';
-          previewFrame.style.display = 'block';
-          previewFrame.removeAttribute('srcdoc');
-          previewFrame.src = url;
-          terminalBadge.textContent = 'Active :' + port;
-          terminalBadge.style.color = '#7ee787';
-        });
-      }
+      webcontainerInstance.on('server-ready', (port, url) => {
+        logTerminal(`🚀 Server backend siap di port ${port}!`);
+        previewEmpty.style.display = 'none';
+        previewFrame.style.display = 'block';
+        previewFrame.removeAttribute('srcdoc');
+        previewFrame.src = url;
+        terminalBadge.textContent = 'Active :' + port;
+        terminalBadge.style.color = '#7ee787';
+      });
 
-      logTerminal('Mounting struktur folder project...');
-      const tree = buildTreeFS(files);
-      await webcontainerInstance.mount(tree);
+      webcontainerInstance.on('error', (err) => {
+        logTerminal('Internal Container Error: ' + err.message);
+      });
+    }
 
-      if (files['package.json']) {
-        logTerminal('Menjalankan npm install...');
-        const install = await webcontainerInstance.spawn('npm', ['install']);
-        install.output.pipeTo(new WritableStream({
-          write(d) { logTerminal(d); }
-        }));
-        const exitCode = await install.exit;
-        if (exitCode !== 0) {
-          throw new Error('npm install gagal. Cek package.json!');
-        }
-      }
+    logTerminal('Mounting struktur folder...');
+    const tree = buildTreeFS(files);
+    await webcontainerInstance.mount(tree);
 
-      let runCmd = ['node', ['server.js']];
-      if (files['package.json']) {
-        runCmd = ['npm', ['start']];
-      } else if (files['api/index.js']) {
-        runCmd = ['node', ['api/index.js']];
-      }
-
-      logTerminal(`Menjalankan backend server (${runCmd[0]} ${runCmd[1].join(' ')})...`);
-      const proc = await webcontainerInstance.spawn(runCmd[0], runCmd[1]);
-      proc.output.pipeTo(new WritableStream({
+    // npm install jika ada package.json
+    if (files['package.json']) {
+      logTerminal('Menjalankan npm install...');
+      const install = await webcontainerInstance.spawn('npm', ['install']);
+      
+      install.output.pipeTo(new WritableStream({
         write(d) { logTerminal(d); }
       }));
 
-    } else if (htmlFile) {
-      logTerminal('Merender file frontend statis...');
-      previewEmpty.style.display = 'none';
-      previewFrame.style.display = 'block';
-      previewFrame.removeAttribute('src');
-      previewFrame.srcdoc = htmlFile.file.contents;
-      terminalBadge.textContent = 'Static Active';
-      terminalBadge.style.color = '#7ee787';
-      logTerminal('✅ Preview berhasil dimuat.');
-    } else {
-      throw new Error('Tidak ditemukan file HTML maupun server.js/package.json untuk dijalankan.');
+      const code = await install.exit;
+      if (code !== 0) {
+        throw new Error('Gagal npm install. Periksa dependensi di package.json Anda!');
+      }
     }
 
+    // Tentukan command start backend
+    let cmd = 'node';
+    let args = [];
+
+    if (files['package.json']) {
+      cmd = 'npm';
+      args = ['start'];
+    } else if (files['api/index.js']) {
+      cmd = 'node';
+      args = ['api/index.js'];
+    } else if (files['server.js']) {
+      cmd = 'node';
+      args = ['server.js'];
+    }
+
+    logTerminal(`Menjalankan backend: ${cmd} ${args.join(' ')}`);
+    currentProcess = await webcontainerInstance.spawn(cmd, args);
+
+    let errorBuffer = '';
+    currentProcess.output.pipeTo(new WritableStream({
+      write(chunk) {
+        logTerminal(chunk);
+        if (chunk.includes('Error') || chunk.includes('error') || chunk.includes('throw')) {
+          errorBuffer += chunk;
+        }
+      }
+    }));
+
+    // Tangkap jika server crash seketika
+    currentProcess.exit.then((exitCode) => {
+      if (exitCode !== 0) {
+        terminalBadge.textContent = 'Crashed';
+        terminalBadge.style.color = '#f85149';
+        showIframeError(`Process exited with code ${exitCode}`, errorBuffer || 'Lihat terminal log di bawah untuk detail stack trace.');
+      }
+    });
+
   } catch (err) {
-    logTerminal('❌ Error: ' + err.message);
+    logTerminal('❌ FATAL: ' + err.message);
     terminalBadge.textContent = 'Error';
     terminalBadge.style.color = '#f85149';
+    showIframeError('System Error', err.message);
   } finally {
     btnRunAll.disabled = false;
     btnRunAll.innerHTML = '<span>▶</span> Run Project';
   }
 };
 
-// Initial Setup
+// Initial Start
 renderTable();
 loadActiveFileToEditor();
