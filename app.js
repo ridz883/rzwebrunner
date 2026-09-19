@@ -29,7 +29,7 @@ const btnOpenExternal = document.getElementById('btn-open-external');
 // Ambil URL tersimpan di browser
 inputPanelUrl.value = localStorage.getItem('panel_tunnel_url') || '';
 
-inputPanelUrl.addEventListener('change', () => {
+inputPanelUrl.addEventListener('input', () => {
   localStorage.setItem('panel_tunnel_url', inputPanelUrl.value.trim().replace(/\/+$/, ''));
 });
 
@@ -282,9 +282,15 @@ btnRunAll.onclick = async () => {
   terminalStream.textContent = `[${inputRepoTitle.value}] Menghubungkan ke ${panelUrl}...`;
 
   try {
-    // 1. Cek kesehatan
-    const health = await fetch(`${panelUrl}/runner-health`, { mode: 'cors' });
-    if (!health.ok) throw new Error('Server tunnel tidak merespon');
+    // 1. Cek kesehatan dengan header bypass tunnel
+    const health = await fetch(`${panelUrl}/runner-health`, {
+      method: 'GET',
+      headers: {
+        'Bypass-Tunnel-Reminder': 'true'
+      }
+    });
+
+    if (!health.ok) throw new Error('Server tunnel mengembalikan status error: ' + health.status);
 
     logTerminal('✅ Terhubung ke Server Panel!');
     logTerminal('Mengirim & menyinkronkan seluruh struktur file project...');
@@ -292,7 +298,10 @@ btnRunAll.onclick = async () => {
     // 2. Kirim kodingan
     const deploy = await fetch(`${panelUrl}/api/deploy`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Bypass-Tunnel-Reminder': 'true'
+      },
       body: JSON.stringify({
         projectName: inputRepoTitle.value,
         files: files
@@ -319,6 +328,7 @@ btnRunAll.onclick = async () => {
 
   } catch (err) {
     logTerminal('❌ ERROR: ' + err.message);
+    logTerminal('💡 Tips: Jika URL baru dibuat, buka URL https://modern-eels-play.loca.lt sekali di tab browser untuk menyetujui izin loca.lt, lalu klik Run lagi.');
     terminalBadge.textContent = 'Failed';
     terminalBadge.style.color = '#f85149';
   } finally {
