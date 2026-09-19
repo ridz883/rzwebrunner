@@ -1,13 +1,10 @@
-// URL Server Node.js Panel Pterodactyl kamu
-const PANEL_RUNNER_URL = "http://erine.jkt48node.id:3668";
-
 // State
 let files = JSON.parse(localStorage.getItem('my_project_files')) || {};
 let currentFolder = '';
 let activeFilePath = Object.keys(files)[0] || '';
 let activeTab = 'pane-files';
 
-// DOM Elements
+// DOM
 const tableFileRows = document.getElementById('table-file-rows');
 const bcRootLabel = document.getElementById('bc-root-label');
 const bcDynamicPath = document.getElementById('bc-dynamic-path');
@@ -25,7 +22,16 @@ const previewFrame = document.getElementById('preview-frame');
 const previewEmpty = document.getElementById('preview-empty');
 const terminalStream = document.getElementById('terminal-stream');
 const terminalBadge = document.getElementById('terminal-badge');
+const inputPanelUrl = document.getElementById('input-panel-url');
+const previewUrlLabel = document.getElementById('preview-url-label');
 const btnOpenExternal = document.getElementById('btn-open-external');
+
+// Ambil URL tersimpan di browser
+inputPanelUrl.value = localStorage.getItem('panel_tunnel_url') || '';
+
+inputPanelUrl.addEventListener('change', () => {
+  localStorage.setItem('panel_tunnel_url', inputPanelUrl.value.trim().replace(/\/+$/, ''));
+});
 
 function logTerminal(msg) {
   terminalStream.textContent += '\n' + msg;
@@ -36,7 +42,7 @@ function saveState() {
   localStorage.setItem('my_project_files', JSON.stringify(files));
 }
 
-// 1. Android Back Button Handling
+// Android Back
 history.replaceState({ tab: 'pane-files' }, '');
 window.addEventListener('popstate', () => {
   if (activeTab !== 'pane-files') {
@@ -75,7 +81,7 @@ document.querySelectorAll('.dock-tab').forEach(b => {
   b.onclick = () => switchTab(b.getAttribute('data-target'));
 });
 
-// 2. Table Render
+// Render Table
 function renderTable() {
   tableFileRows.innerHTML = '';
   bcRootLabel.textContent = inputRepoTitle.value || 'chat-ai-workspace';
@@ -219,7 +225,7 @@ function deleteFileOrDir(item) {
   }
 }
 
-// 3. Editor Logic
+// Editor
 function updateGutter() {
   const lines = codeEditor.value.split('\n').length;
   editorGutter.innerHTML = Array.from({ length: lines }, (_, i) => i + 1).join('<br>');
@@ -254,29 +260,37 @@ function saveActiveEditorContent() {
   }
 }
 
-// 4. EKSEKUSI NYATA KE SERVER PANEL (TIDAK ADA BLOKIR AI & TIDAK ADA CSS RUSAK)
+// RUN PROJECT KE SERVER PANEL VIA HTTPS TUNNEL
 btnRunAll.onclick = async () => {
   saveActiveEditorContent();
   saveState();
 
+  const panelUrl = inputPanelUrl.value.trim().replace(/\/+$/, '');
+  if (!panelUrl) {
+    alert('Silakan masukkan URL HTTPS Tunnel dari konsol panel Anda di kolom atas!');
+    return;
+  }
+
+  localStorage.setItem('panel_tunnel_url', panelUrl);
+
   btnRunAll.disabled = true;
   btnRunAll.innerHTML = '<span>⏳</span> Deploying...';
-  terminalBadge.textContent = 'Deploying';
+  terminalBadge.textContent = 'Connecting';
   terminalBadge.style.color = '#e3b341';
 
   switchTab('pane-preview');
-  terminalStream.textContent = `[${inputRepoTitle.value}] Mengirim seluruh struktur project ke server panel (${PANEL_RUNNER_URL})...`;
+  terminalStream.textContent = `[${inputRepoTitle.value}] Menghubungkan ke ${panelUrl}...`;
 
   try {
-    // 1. Cek kesehatan server panel
-    const checkRes = await fetch(`${PANEL_RUNNER_URL}/runner-health`).catch(() => null);
-    if (!checkRes || !checkRes.ok) {
-      throw new Error(`Server panel di ${PANEL_RUNNER_URL} tidak dapat dijangkau. Pastikan server di tab Console panel Pterodactyl sudah berstatus START.`);
-    }
+    // 1. Cek kesehatan
+    const health = await fetch(`${panelUrl}/runner-health`, { mode: 'cors' });
+    if (!health.ok) throw new Error('Server tunnel tidak merespon');
 
-    // 2. Deploy struktur files ke panel
-    logTerminal('Mengirim file ke folder workspace server...');
-    const deployRes = await fetch(`${PANEL_RUNNER_URL}/api/deploy`, {
+    logTerminal('✅ Terhubung ke Server Panel!');
+    logTerminal('Mengirim & menyinkronkan seluruh struktur file project...');
+
+    // 2. Kirim kodingan
+    const deploy = await fetch(`${panelUrl}/api/deploy`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -285,27 +299,27 @@ btnRunAll.onclick = async () => {
       })
     });
 
-    const deployData = await deployRes.json();
-    if (!deployRes.ok) {
-      throw new Error(deployData.error || 'Gagal sinkronisasi file ke panel');
-    }
+    const resData = await deploy.json();
+    if (!deploy.ok) throw new Error(resData.error || 'Gagal deploy');
 
-    logTerminal('✅ Sukses! ' + deployData.message);
-    logTerminal('🚀 Server panel aktif dan siap melayani permintaan AI dan Frontend.');
+    logTerminal('🚀 Sukses: ' + resData.message);
+    logTerminal('Preview live siap dibuka!');
 
-    // 3. Muat hasil preview
-    const previewUrl = `${PANEL_RUNNER_URL}?t=${Date.now()}`;
+    // 3. Muat di iframe & sediakan link langsung
+    previewUrlLabel.textContent = panelUrl;
+    btnOpenExternal.href = panelUrl;
+    btnOpenExternal.style.display = 'block';
+
     previewEmpty.style.display = 'none';
     previewFrame.style.display = 'block';
-    previewFrame.src = previewUrl;
+    previewFrame.src = `${panelUrl}?t=${Date.now()}`;
 
-    btnOpenExternal.href = PANEL_RUNNER_URL;
-    terminalBadge.textContent = 'Live Server';
+    terminalBadge.textContent = 'Live HTTPS';
     terminalBadge.style.color = '#7ee787';
 
   } catch (err) {
     logTerminal('❌ ERROR: ' + err.message);
-    terminalBadge.textContent = 'Error';
+    terminalBadge.textContent = 'Failed';
     terminalBadge.style.color = '#f85149';
   } finally {
     btnRunAll.disabled = false;
