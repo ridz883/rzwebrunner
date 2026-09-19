@@ -1,10 +1,13 @@
+// URL SERVER PANEL PERMANEN (User tidak perlu tahu / isi manual)
+const DEFAULT_PANEL_BACKEND = "https://rz-server-node.loca.lt";
+
 // State
 let files = JSON.parse(localStorage.getItem('my_project_files')) || {};
 let currentFolder = '';
 let activeFilePath = Object.keys(files)[0] || '';
 let activeTab = 'pane-files';
 
-// DOM
+// DOM Elements
 const tableFileRows = document.getElementById('table-file-rows');
 const bcRootLabel = document.getElementById('bc-root-label');
 const bcDynamicPath = document.getElementById('bc-dynamic-path');
@@ -22,16 +25,8 @@ const previewFrame = document.getElementById('preview-frame');
 const previewEmpty = document.getElementById('preview-empty');
 const terminalStream = document.getElementById('terminal-stream');
 const terminalBadge = document.getElementById('terminal-badge');
-const inputPanelUrl = document.getElementById('input-panel-url');
 const previewUrlLabel = document.getElementById('preview-url-label');
 const btnOpenExternal = document.getElementById('btn-open-external');
-
-// Ambil URL tersimpan di browser
-inputPanelUrl.value = localStorage.getItem('panel_tunnel_url') || '';
-
-inputPanelUrl.addEventListener('input', () => {
-  localStorage.setItem('panel_tunnel_url', inputPanelUrl.value.trim().replace(/\/+$/, ''));
-});
 
 function logTerminal(msg) {
   terminalStream.textContent += '\n' + msg;
@@ -84,7 +79,7 @@ document.querySelectorAll('.dock-tab').forEach(b => {
 // Render Table
 function renderTable() {
   tableFileRows.innerHTML = '';
-  bcRootLabel.textContent = inputRepoTitle.value || 'chat-ai-workspace';
+  bcRootLabel.textContent = inputRepoTitle.value || 'workspace';
   bcDynamicPath.innerHTML = currentFolder 
     ? ' / ' + currentFolder.split('/').map(p => `<span>${p}</span>`).join(' / ')
     : '';
@@ -260,40 +255,32 @@ function saveActiveEditorContent() {
   }
 }
 
-// RUN PROJECT KE SERVER PANEL VIA HTTPS TUNNEL
+// RUN PROJECT KE SERVER PANEL SECARA OTOMATIS
 btnRunAll.onclick = async () => {
   saveActiveEditorContent();
   saveState();
 
-  const panelUrl = inputPanelUrl.value.trim().replace(/\/+$/, '');
-  if (!panelUrl) {
-    alert('Silakan masukkan URL HTTPS Tunnel dari konsol panel Anda di kolom atas!');
-    return;
-  }
-
-  localStorage.setItem('panel_tunnel_url', panelUrl);
+  const panelUrl = DEFAULT_PANEL_BACKEND;
 
   btnRunAll.disabled = true;
   btnRunAll.innerHTML = '<span>⏳</span> Deploying...';
-  terminalBadge.textContent = 'Connecting';
+  terminalBadge.textContent = 'Executing';
   terminalBadge.style.color = '#e3b341';
 
   switchTab('pane-preview');
-  terminalStream.textContent = `[${inputRepoTitle.value}] Menghubungkan ke ${panelUrl}...`;
+  terminalStream.textContent = `[${inputRepoTitle.value}] Menghubungkan ke runner cloud server...`;
 
   try {
-    // 1. Cek kesehatan dengan header bypass tunnel
+    // 1. Cek kesehatan
     const health = await fetch(`${panelUrl}/runner-health`, {
       method: 'GET',
-      headers: {
-        'Bypass-Tunnel-Reminder': 'true'
-      }
+      headers: { 'Bypass-Tunnel-Reminder': 'true' }
     });
 
-    if (!health.ok) throw new Error('Server tunnel mengembalikan status error: ' + health.status);
+    if (!health.ok) throw new Error('Server sedang offline atau restart.');
 
-    logTerminal('✅ Terhubung ke Server Panel!');
-    logTerminal('Mengirim & menyinkronkan seluruh struktur file project...');
+    logTerminal('✅ Server Cloud Terhubung!');
+    logTerminal('Menyinkronkan file dan dependencies project...');
 
     // 2. Kirim kodingan
     const deploy = await fetch(`${panelUrl}/api/deploy`, {
@@ -312,9 +299,9 @@ btnRunAll.onclick = async () => {
     if (!deploy.ok) throw new Error(resData.error || 'Gagal deploy');
 
     logTerminal('🚀 Sukses: ' + resData.message);
-    logTerminal('Preview live siap dibuka!');
+    logTerminal('Hasil web berhasil dirender secara live!');
 
-    // 3. Muat di iframe & sediakan link langsung
+    // 3. Muat di iframe
     previewUrlLabel.textContent = panelUrl;
     btnOpenExternal.href = panelUrl;
     btnOpenExternal.style.display = 'block';
@@ -323,12 +310,11 @@ btnRunAll.onclick = async () => {
     previewFrame.style.display = 'block';
     previewFrame.src = `${panelUrl}?t=${Date.now()}`;
 
-    terminalBadge.textContent = 'Live HTTPS';
+    terminalBadge.textContent = 'Online';
     terminalBadge.style.color = '#7ee787';
 
   } catch (err) {
     logTerminal('❌ ERROR: ' + err.message);
-    logTerminal('💡 Tips: Jika URL baru dibuat, buka URL https://modern-eels-play.loca.lt sekali di tab browser untuk menyetujui izin loca.lt, lalu klik Run lagi.');
     terminalBadge.textContent = 'Failed';
     terminalBadge.style.color = '#f85149';
   } finally {
