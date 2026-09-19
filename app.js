@@ -1,54 +1,30 @@
 import { WebContainer } from 'https://cdn.jsdelivr.net/npm/@webcontainer/api@1.6.4/+esm';
 
-// Default Workspace Files
+// Default project jika belum ada kodingan
 const DEFAULT_FILES = {
   'package.json': {
     file: {
       contents: JSON.stringify({
-        name: "my-project",
+        name: "chat-ai-workspace",
         version: "1.0.0",
         type: "module",
         scripts: {
-          "start": "node api/index.js"
+          "dev": "vercel dev"
         },
-        dependencies: {
-          "express": "^4.18.2",
-          "cors": "^2.8.5"
-        }
+        dependencies: {}
       }, null, 2)
     }
   },
   'api/index.js': {
     file: {
-      contents: `import express from 'express';
-import cors from 'cors';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const app = express();
-const PORT = 3000;
-
-app.use(cors());
-app.use(express.json());
-
-// Melayani file frontend statis dari folder public
-const publicPath = path.join(__dirname, '../public');
-app.use(express.static(publicPath));
-
-app.get('/api/status', (req, res) => {
-  res.json({
-    status: 'online',
-    message: 'Backend Express berhasil terhubung!',
-    timestamp: new Date().toLocaleTimeString()
+      contents: `// Vercel Serverless Function Handler
+export default function handler(req, res) {
+  res.status(200).json({
+    success: true,
+    message: "Halo dari Vercel Serverless Function (/api/index)!",
+    time: new Date().toLocaleTimeString()
   });
-});
-
-app.listen(PORT, () => {
-  console.log('✅ Server aktif di port ' + PORT);
-});`
+}`
     }
   },
   'public/index.html': {
@@ -56,9 +32,8 @@ app.listen(PORT, () => {
       contents: `<!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>App Preview</title>
+  <meta charset="UTF-8">
+  <title>Vercel App Preview</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -80,21 +55,20 @@ app.listen(PORT, () => {
       max-width: 320px;
       width: 100%;
       text-align: center;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
     }
-    h2 { font-size: 18px; margin-bottom: 8px; color: #58a6ff; }
+    h2 { font-size: 18px; color: #58a6ff; margin-bottom: 8px; }
     p { font-size: 12px; color: #8b949e; line-height: 1.5; margin-bottom: 16px; }
     button {
       background: #238636;
       color: white;
-      border: 1px solid rgba(240,246,252,0.1);
+      border: none;
       padding: 10px 18px;
       border-radius: 6px;
       font-weight: 600;
       cursor: pointer;
       width: 100%;
     }
-    .result {
+    .res {
       margin-top: 14px;
       background: #0d1117;
       border: 1px solid #30363d;
@@ -109,22 +83,22 @@ app.listen(PORT, () => {
 </head>
 <body>
   <div class="card">
-    <h2>Project Runner Live</h2>
-    <p>Frontend dari folder <code>public/index.html</code> terhubung dengan backend Express.</p>
-    <button id="btn-fetch">Tes API Backend</button>
-    <div id="output" class="result">Menunggu interaksi...</div>
+    <h2>Vercel Project Berjalan</h2>
+    <p>Frontend dari <code>public/index.html</code> siap memanggil Serverless Function.</p>
+    <button id="btn-call">Panggil /api/index</button>
+    <div id="output" class="res">Menunggu interaksi...</div>
   </div>
 
   <script>
-    document.getElementById('btn-fetch').onclick = async () => {
+    document.getElementById('btn-call').onclick = async () => {
       const out = document.getElementById('output');
-      out.innerText = 'Mengambil data dari /api/status...';
+      out.innerText = 'Mengambil respon function...';
       try {
-        const res = await fetch('/api/status');
+        const res = await fetch('/api');
         const data = await res.json();
         out.innerText = JSON.stringify(data, null, 2);
       } catch (err) {
-        out.innerText = 'Error fetch: ' + err.message;
+        out.innerText = 'Error: ' + err.message;
       }
     };
   <\/script>
@@ -134,13 +108,12 @@ app.listen(PORT, () => {
   }
 };
 
-// State
+// State Manager
 let files = JSON.parse(localStorage.getItem('my_project_files')) || DEFAULT_FILES;
 let currentFolder = '';
-let activeFilePath = 'api/index.js';
+let activeFilePath = 'package.json';
 let activeTab = 'pane-files';
 let webcontainerInstance = null;
-let currentProcess = null;
 
 // DOM
 const tableFileRows = document.getElementById('table-file-rows');
@@ -170,7 +143,6 @@ function saveState() {
   localStorage.setItem('my_project_files', JSON.stringify(files));
 }
 
-// Display visual error in iframe if backend crashes
 function showIframeError(title, detail) {
   previewEmpty.style.display = 'none';
   previewFrame.style.display = 'block';
@@ -187,15 +159,14 @@ function showIframeError(title, detail) {
   </head>
   <body>
     <div class="box">
-      <h3>⚠️ Execution Error: ${title}</h3>
-      <p style="color: #8b949e; font-size: 12px;">Server backend Anda gagal running karena ada kesalahan kode:</p>
+      <h3>⚠️ Runtime Error: ${title}</h3>
       <pre>${detail}</pre>
     </div>
   </body>
   </html>`;
 }
 
-// 1. Android Back Handling
+// 1. Android Back Button Handling
 history.replaceState({ tab: 'pane-files' }, '');
 window.addEventListener('popstate', () => {
   if (activeTab !== 'pane-files') {
@@ -413,7 +384,7 @@ function saveActiveEditorContent() {
   }
 }
 
-// 4. Build Tree
+// 4. Helper: Mount Tree
 function buildTreeFS(map) {
   const tree = {};
   for (const [p, d] of Object.entries(map)) {
@@ -432,26 +403,26 @@ function buildTreeFS(map) {
   return tree;
 }
 
-// 5. RUN ENGINE DENGAN LOG & ERROR DETECTION PENUH
+// 5. VERCEL SERVERLESS SIMULATOR RUNNER (TIDAK BUTUH SCRIPT START SAMA SEKALI)
 btnRunAll.onclick = async () => {
   saveActiveEditorContent();
   saveState();
 
   btnRunAll.disabled = true;
   btnRunAll.innerHTML = '<span>⏳</span> Running...';
-  terminalBadge.textContent = 'Executing';
+  terminalBadge.textContent = 'Simulating';
   terminalBadge.style.color = '#e3b341';
 
   switchTab('pane-preview');
-  terminalStream.textContent = `[${inputRepoTitle.value}] Menyiapkan runtime container...`;
+  terminalStream.textContent = `[${inputRepoTitle.value}] Memulai Vercel Runtime Simulator...`;
 
   try {
     if (!webcontainerInstance) {
-      logTerminal('Menginisialisasi WebContainer di browser...');
+      logTerminal('Booting WebContainer engine di browser...');
       webcontainerInstance = await WebContainer.boot();
 
       webcontainerInstance.on('server-ready', (port, url) => {
-        logTerminal(`🚀 Server backend siap di port ${port}!`);
+        logTerminal(`🚀 Vercel Serverless Simulator aktif di port ${port}!`);
         previewEmpty.style.display = 'none';
         previewFrame.style.display = 'block';
         previewFrame.removeAttribute('srcdoc');
@@ -459,70 +430,139 @@ btnRunAll.onclick = async () => {
         terminalBadge.textContent = 'Active :' + port;
         terminalBadge.style.color = '#7ee787';
       });
-
-      webcontainerInstance.on('error', (err) => {
-        logTerminal('Internal Container Error: ' + err.message);
-      });
     }
 
-    logTerminal('Mounting struktur folder...');
-    const tree = buildTreeFS(files);
+    // Salin file project asli
+    const runtimeFiles = { ...files };
+
+    // Buat Server Gateway Internal otomatis untuk memproses /api dan /public
+    // Ini menghilangkan kewajiban script "start" di package.json pengguna!
+    const apiFiles = Object.keys(files).filter(k => k.startsWith('api/') && (k.endsWith('.js') || k.endsWith('.mjs')));
+    
+    let routeImports = '';
+    let routeRegistrations = '';
+
+    apiFiles.forEach((fileKey, index) => {
+      const routeVar = `route_${index}`;
+      let apiRoute = fileKey.replace(/^api\//, '').replace(/\.(js|mjs)$/, '');
+      if (apiRoute === 'index') apiRoute = ''; // /api atau /api/index
+      
+      routeImports += `import ${routeVar} from './${fileKey}';\n`;
+      routeRegistrations += `
+        app.all('/api/${apiRoute}', async (req, res) => {
+          try {
+            const fn = ${routeVar}.default || ${routeVar};
+            if (typeof fn === 'function') {
+              await fn(req, res);
+            } else {
+              res.status(500).json({ error: "File ${fileKey} tidak mengekspor default function handler" });
+            }
+          } catch(err) {
+            res.status(500).json({ error: err.message, stack: err.stack });
+          }
+        });
+      `;
+      if (apiRoute === '') {
+        // Daftarkan juga untuk persis '/api'
+        routeRegistrations += `
+          app.all('/api', async (req, res) => {
+            try {
+              const fn = ${routeVar}.default || ${routeVar};
+              await fn(req, res);
+            } catch(err) {
+              res.status(500).json({ error: err.message });
+            }
+          });
+        `;
+      }
+    });
+
+    // File server virtual yang bertindak seperti Vercel Dev Server
+    runtimeFiles['__vercel_runtime_server.js'] = {
+      file: {
+        contents: `import express from 'express';
+import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
+
+${routeImports}
+
+const app = express();
+const PORT = 3000;
+
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Daftarkan serverless functions
+${routeRegistrations}
+
+// Sajikan folder public otomatis
+if (fs.existsSync('./public')) {
+  app.use(express.static('./public'));
+}
+
+// Fallback jika memanggil root tapi index ada di root
+if (fs.existsSync('./index.html')) {
+  app.get('/', (req, res) => {
+    res.sendFile(path.resolve('./index.html'));
+  });
+}
+
+app.listen(PORT, () => {
+  console.log('✅ Vercel Local Engine listening on port ' + PORT);
+});`
+      }
+    };
+
+    // Pastikan express terpasang di runtime
+    let pkgObj = {};
+    try {
+      pkgObj = JSON.parse(files['package.json']?.file?.contents || '{}');
+    } catch(e) {
+      pkgObj = {};
+    }
+    pkgObj.type = "module";
+    pkgObj.dependencies = pkgObj.dependencies || {};
+    pkgObj.dependencies["express"] = "^4.18.2";
+    pkgObj.dependencies["cors"] = "^2.8.5";
+
+    runtimeFiles['package.json'] = {
+      file: { contents: JSON.stringify(pkgObj, null, 2) }
+    };
+
+    logTerminal('Mounting struktur folder project...');
+    const tree = buildTreeFS(runtimeFiles);
     await webcontainerInstance.mount(tree);
 
-    // npm install jika ada package.json
-    if (files['package.json']) {
-      logTerminal('Menjalankan npm install...');
-      const install = await webcontainerInstance.spawn('npm', ['install']);
-      
-      install.output.pipeTo(new WritableStream({
-        write(d) { logTerminal(d); }
-      }));
+    logTerminal('Menginstall dependensi simulator...');
+    const install = await webcontainerInstance.spawn('npm', ['install']);
+    install.output.pipeTo(new WritableStream({
+      write(d) { logTerminal(d); }
+    }));
+    await install.exit;
 
-      const code = await install.exit;
-      if (code !== 0) {
-        throw new Error('Gagal npm install. Periksa dependensi di package.json Anda!');
-      }
-    }
-
-    // Tentukan command start backend
-    let cmd = 'node';
-    let args = [];
-
-    if (files['package.json']) {
-      cmd = 'npm';
-      args = ['start'];
-    } else if (files['api/index.js']) {
-      cmd = 'node';
-      args = ['api/index.js'];
-    } else if (files['server.js']) {
-      cmd = 'node';
-      args = ['server.js'];
-    }
-
-    logTerminal(`Menjalankan backend: ${cmd} ${args.join(' ')}`);
-    currentProcess = await webcontainerInstance.spawn(cmd, args);
-
-    let errorBuffer = '';
-    currentProcess.output.pipeTo(new WritableStream({
-      write(chunk) {
-        logTerminal(chunk);
-        if (chunk.includes('Error') || chunk.includes('error') || chunk.includes('throw')) {
-          errorBuffer += chunk;
-        }
+    logTerminal('Menjalankan engine Vercel Serverless...');
+    const runProcess = await webcontainerInstance.spawn('node', ['__vercel_runtime_server.js']);
+    
+    let errorLog = '';
+    runProcess.output.pipeTo(new WritableStream({
+      write(d) {
+        logTerminal(d);
+        if (d.toLowerCase().includes('error')) errorLog += d;
       }
     }));
 
-    // Tangkap jika server crash seketika
-    currentProcess.exit.then((exitCode) => {
-      if (exitCode !== 0) {
+    runProcess.exit.then((code) => {
+      if (code !== 0) {
         terminalBadge.textContent = 'Crashed';
         terminalBadge.style.color = '#f85149';
-        showIframeError(`Process exited with code ${exitCode}`, errorBuffer || 'Lihat terminal log di bawah untuk detail stack trace.');
+        showIframeError(`Process exited with code ${code}`, errorLog || 'Periksa terminal di bawah.');
       }
     });
 
   } catch (err) {
-    logTerminal('❌ FATAL: ' + err.message);
+    logTerminal('❌ ERROR: ' + err.message);
     terminalBadge.textContent = 'Error';
     terminalBadge.style.color = '#f85149';
     showIframeError('System Error', err.message);
