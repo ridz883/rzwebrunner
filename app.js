@@ -1,8 +1,7 @@
 import { WebContainer } from 'https://cdn.jsdelivr.net/npm/@webcontainer/api@1.6.4/+esm';
 
 // Konfigurasi URL Panel kamu jika sudah siap (bisa diganti URL domain panelmu)
-const PANEL_RUNNER_URL = "http://erine.jkt48node.id:3668
-"; 
+const PANEL_RUNNER_URL = "http://erine.jkt48node.id:3668"; 
 
 // Struktur file awal project
 let files = {
